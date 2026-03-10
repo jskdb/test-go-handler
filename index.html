@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Go Handler API 测试面板</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+    .header {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border-bottom: 1px solid #334155;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .header h1 {
+      font-size: 22px;
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+    .header .badge {
+      background: #22d3ee;
+      color: #0f172a;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px 32px; }
+
+    .section { margin-bottom: 32px; }
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      padding-left: 4px;
+    }
+
+    .api-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .api-card:hover { border-color: #475569; }
+    .api-card.success { border-color: #22c55e; }
+    .api-card.error { border-color: #ef4444; }
+
+    .card-header {
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .method-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      min-width: 42px;
+      text-align: center;
+    }
+    .method-GET { background: #22c55e20; color: #22c55e; }
+    .method-POST { background: #3b82f620; color: #3b82f6; }
+    .method-ANY { background: #a855f720; color: #a855f7; }
+
+    .route-path {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 14px;
+      color: #e2e8f0;
+      flex: 1;
+    }
+    .route-path .param { color: #22d3ee; }
+    .route-path .catchall { color: #f59e0b; }
+
+    .route-desc {
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    .card-body {
+      display: none;
+      padding: 0 18px 16px;
+      border-top: 1px solid #334155;
+    }
+    .card-body.open { display: block; padding-top: 14px; }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .input-group label {
+      font-size: 11px;
+      color: #64748b;
+      font-weight: 500;
+    }
+    .input-group input, .input-group select, .input-group textarea {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 7px 10px;
+      color: #e2e8f0;
+      font-size: 13px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+    .input-group input:focus, .input-group select:focus, .input-group textarea:focus {
+      outline: none;
+      border-color: #22d3ee;
+    }
+    .input-group textarea {
+      min-height: 60px;
+      resize: vertical;
+    }
+
+    .btn-send {
+      background: #22d3ee;
+      color: #0f172a;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      align-self: flex-end;
+    }
+    .btn-send:hover { background: #06b6d4; }
+    .btn-send:active { transform: scale(0.97); }
+    .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .response-area {
+      margin-top: 12px;
+    }
+    .response-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .status-badge {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .status-2xx { background: #22c55e20; color: #22c55e; }
+    .status-4xx { background: #f59e0b20; color: #f59e0b; }
+    .status-5xx { background: #ef444420; color: #ef4444; }
+    .status-err { background: #ef444420; color: #ef4444; }
+
+    .response-time {
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    .response-body {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 12px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #e2e8f0;
+      max-height: 300px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .chevron {
+      color: #475569;
+      transition: transform 0.2s;
+      font-size: 12px;
+    }
+    .chevron.open { transform: rotate(90deg); }
+
+    @media (max-width: 768px) {
+      .container { padding: 16px; }
+      .header { padding: 16px; }
+      .input-row { flex-direction: column; }
+      .input-group { width: 100%; }
+      .input-group input, .input-group select { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Go Handler API 测试面板</h1>
+  <span class="badge">8 Endpoints</span>
+</div>
+
+<div class="container" id="app"></div>
+
+<script>
+const APIs = [
+  // ── 基础路由 ──
+  {
+    section: '基础路由',
+    items: [
+      {
+        method: 'GET', route: '/hello', desc: '基础示例 — 返回 Go 版本信息',
+        params: [], body: false
+      },
+      {
+        method: 'GET', route: '/health', desc: '健康检查',
+        params: [], body: false
+      },
+      {
+        method: 'ANY', route: '/echo', desc: '请求回显 — 支持任意 HTTP 方法',
+        params: [],
+        body: true,
+        defaultMethod: 'POST',
+        defaultBody: '{"message": "hello from echo"}'
+      }
+    ]
+  },
+  // ── 静态 API 路由 ──
+  {
+    section: '静态 API 路由',
+    items: [
+      {
+        method: 'GET', route: '/api/users', desc: '用户列表',
+        params: [], body: false
+      }
+    ]
+  },
+  // ── 单动态参数 ──
+  {
+    section: '单动态参数 [param]',
+    items: [
+      {
+        method: 'GET', route: '/api/{id}', desc: '通过 ID 获取资源',
+        params: [{ name: 'id', placeholder: '123', segment: 2 }], body: false
+      }
+    ]
+  },
+  // ── 多动态参数（双层） ──
+  {
+    section: '多动态参数 [param1]/[param2]',
+    items: [
+      {
+        method: 'GET', route: '/api/products/{productId}/reviews/{reviewId}',
+        desc: '商品评论详情',
+        params: [
+          { name: 'productId', placeholder: 'sku-001', segment: 3 },
+          { name: 'reviewId', placeholder: '42', segment: 5 }
+        ], body: false
+      }
+    ]
+  },
+  // ── 三层动态参数 ──
+  {
+    section: '多层级动态路由 [p1]/[p2]/[p3]',
+    items: [
+      {
+        method: 'GET', route: '/api/users/{userId}/posts/{postId}/comments/{commentId}',
+        desc: '用户文章的某条评论（三层嵌套）',
+        params: [
+          { name: 'userId', placeholder: 'u-100', segment: 3 },
+          { name: 'postId', placeholder: 'p-200', segment: 5 },
+          { name: 'commentId', placeholder: 'c-300', segment: 7 }
+        ], body: false
+      }
+    ]
+  },
+  // ── Catch-All 路由 ──
+  {
+    section: 'Catch-All 路由 [[path]]',
+    items: [
+      {
+        method: 'GET', route: '/api/files/{...path}',
+        desc: '文件路径捕获 — 匹配任意层级',
+        params: [{ name: 'path', placeholder: 'docs/readme.md', isCatchAll: true }],
+        body: false
+      }
+    ]
+  }
+];
+
+function buildUrl(api, inputValues) {
+  if (api.params.length === 0) return api.route;
+
+  // catch-all
+  const catchAll = api.params.find(p => p.isCatchAll);
+  if (catchAll) {
+    const val = inputValues[catchAll.name] || '';
+    return '/api/files' + (val ? '/' + val : '');
+  }
+
+  // dynamic params: build from route template
+  let path = api.route;
+  api.params.forEach(p => {
+    path = path.replace(`{${p.name}}`, encodeURIComponent(inputValues[p.name] || p.placeholder));
+  });
+  return path;
+}
+
+function highlightRoute(route) {
+  return route
+    .replace(/\{\.\.\.(\w+)\}/g, '<span class="catchall">[[...$1]]</span>')
+    .replace(/\{(\w+)\}/g, '<span class="param">:$1</span>');
+}
+
+function formatJSON(str) {
+  try {
+    return JSON.stringify(JSON.parse(str), null, 2);
+  } catch { return str; }
+}
+
+function statusClass(code) {
+  if (code >= 200 && code < 300) return 'status-2xx';
+  if (code >= 400 && code < 500) return 'status-4xx';
+  if (code >= 500) return 'status-5xx';
+  return 'status-err';
+}
+
+function render() {
+  const app = document.getElementById('app');
+  let html = '';
+  let idx = 0;
+
+  APIs.forEach(section => {
+    html += `<div class="section">`;
+    html += `<div class="section-title">${section.section}</div>`;
+
+    section.items.forEach(api => {
+      const id = `api-${idx}`;
+      const methodLabel = api.method;
+      const methodClass = `method-${api.method}`;
+
+      html += `<div class="api-card" id="${id}-card">`;
+      html += `  <div class="card-header" onclick="toggle('${id}')">`;
+      html += `    <span class="chevron" id="${id}-chevron">▶</span>`;
+      html += `    <span class="method-badge ${methodClass}">${methodLabel}</span>`;
+      html += `    <span class="route-path">${highlightRoute(api.route)}</span>`;
+      html += `    <span class="route-desc">${api.desc}</span>`;
+      html += `  </div>`;
+      html += `  <div class="card-body" id="${id}-body">`;
+
+      // inputs
+      html += `<div class="input-row">`;
+      if (api.method === 'ANY') {
+        html += `<div class="input-group">`;
+        html += `  <label>Method</label>`;
+        html += `  <select id="${id}-method">`;
+        ['GET','POST','PUT','PATCH','DELETE'].forEach(m => {
+          const sel = m === (api.defaultMethod || 'GET') ? ' selected' : '';
+          html += `<option${sel}>${m}</option>`;
+        });
+        html += `  </select>`;
+        html += `</div>`;
+      }
+      api.params.forEach(p => {
+        html += `<div class="input-group">`;
+        html += `  <label>${p.name}</label>`;
+        html += `  <input type="text" id="${id}-${p.name}" placeholder="${p.placeholder}" value="${p.placeholder}">`;
+        html += `</div>`;
+      });
+      html += `  <button class="btn-send" id="${id}-btn" onclick="send('${id}', ${idx})">发送请求</button>`;
+      html += `</div>`;
+
+      // body for echo
+      if (api.body) {
+        html += `<div class="input-group" style="margin-bottom:10px">`;
+        html += `  <label>Request Body (JSON)</label>`;
+        html += `  <textarea id="${id}-reqbody">${api.defaultBody || ''}</textarea>`;
+        html += `</div>`;
+      }
+
+      // response area
+      html += `<div class="response-area" id="${id}-response" style="display:none">`;
+      html += `  <div class="response-header">`;
+      html += `    <span class="status-badge" id="${id}-status"></span>`;
+      html += `    <span class="response-time" id="${id}-time"></span>`;
+      html += `  </div>`;
+      html += `  <div class="response-body" id="${id}-result"></div>`;
+      html += `</div>`;
+
+      html += `  </div>`;
+      html += `</div>`;
+      idx++;
+    });
+    html += `</div>`;
+  });
+
+  app.innerHTML = html;
+}
+
+function toggle(id) {
+  const body = document.getElementById(id + '-body');
+  const chevron = document.getElementById(id + '-chevron');
+  body.classList.toggle('open');
+  chevron.classList.toggle('open');
+}
+
+// Flatten items for lookup
+const flatAPIs = APIs.flatMap(s => s.items);
+
+async function send(id, apiIdx) {
+  const api = flatAPIs[apiIdx];
+  const btn = document.getElementById(id + '-btn');
+  const card = document.getElementById(id + '-card');
+  const respArea = document.getElementById(id + '-response');
+  const statusEl = document.getElementById(id + '-status');
+  const timeEl = document.getElementById(id + '-time');
+  const resultEl = document.getElementById(id + '-result');
+
+  // collect param values
+  const values = {};
+  api.params.forEach(p => {
+    const input = document.getElementById(`${id}-${p.name}`);
+    if (input) values[p.name] = input.value;
+  });
+
+  const url = buildUrl(api, values);
+  let method = api.method === 'ANY'
+    ? (document.getElementById(id + '-method')?.value || 'GET')
+    : 'GET';
+
+  const opts = { method, headers: {} };
+  if (api.body) {
+    const bodyEl = document.getElementById(id + '-reqbody');
+    if (bodyEl && bodyEl.value.trim()) {
+      opts.body = bodyEl.value.trim();
+      opts.headers['Content-Type'] = 'application/json';
+    }
+  }
+
+  btn.disabled = true;
+  btn.textContent = '请求中...';
+  card.classList.remove('success', 'error');
+  respArea.style.display = 'none';
+
+  const start = performance.now();
+  try {
+    const res = await fetch(url, opts);
+    const elapsed = Math.round(performance.now() - start);
+    const text = await res.text();
+
+    respArea.style.display = 'block';
+    statusEl.textContent = `${res.status} ${res.statusText}`;
+    statusEl.className = `status-badge ${statusClass(res.status)}`;
+    timeEl.textContent = `${elapsed}ms`;
+    resultEl.textContent = formatJSON(text);
+    card.classList.add(res.ok ? 'success' : 'error');
+  } catch (err) {
+    const elapsed = Math.round(performance.now() - start);
+    respArea.style.display = 'block';
+    statusEl.textContent = 'Error';
+    statusEl.className = 'status-badge status-err';
+    timeEl.textContent = `${elapsed}ms`;
+    resultEl.textContent = err.message + '\n\n请确认服务是否已启动。';
+    card.classList.add('error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '发送请求';
+  }
+}
+
+render();
+</script>
+</body>
+</html>
